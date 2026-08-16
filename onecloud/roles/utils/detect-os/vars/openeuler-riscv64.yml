@@ -1,0 +1,49 @@
+---
+is_redhat_based: true
+is_openeuler_riscv64: true
+is_openeuler_based: true
+is_centos_based: true
+centos_version: 10
+
+common_packages:
+  - bash-completion
+  - bridge-utils
+  - conntrack-tools
+  - curl
+  - fuse
+  - jq
+  - kmod
+  - nfs-utils
+  - parallel
+  - pciutils
+  - python3-libselinux
+  - python3-pip
+  - rsync
+  - tcpdump
+  - cloudpods-executor
+  - cloudpods-riscv-firmware
+  - openvswitch
+  - qemu-riscv-cloudpods
+
+common_services:
+  - cloudpods-executor
+
+latest_packages: []
+qemu_10_packages: []
+ovs_packages: []
+ceph_packages: []
+executor_service: cloudpods-executor
+
+k3s_pause_image: ghcr.io/yinjiayi/k3s-pause:3.10-riscv64.1
+k3s_helm_job_image: ghcr.io/yinjiayi/k3s-klipper-helm:v0.9.3-build20241008-riscv64.1
+k3s_traefik_image: ghcr.io/yinjiayi/k3s-traefik:2.10.5-riscv64.1
+openvswitch_image: ghcr.io/yinjiayi/openvswitch:2.12.4-20260415-riscv64.1
+
+cloudpods_etcd_version: 3.5.24-riscv64.1
+cloudpods_busybox_image: ghcr.io/yinjiayi/busybox:1.35.0-riscv64.1
+cloudpods_host_health_tag: v0.0.4-riscv64.1
+cloudpods_host_image_tag: v1.0.8-riscv64.1
+cloudpods_openvswitch_tag: 2.12.4-20260415-riscv64.1
+cloudpods_victoria_metrics_tag: v1.129.1-1-riscv64.1
+cloudpods_web_tag: v4.0.3-riscv64-ui2
+cloudpods_guacd_tag: 1.6.0-riscv64.1

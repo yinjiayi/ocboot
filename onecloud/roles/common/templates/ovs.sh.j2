@@ -1,7 +1,7 @@
 #!/bin/bash
 
 TTY=""
-BIMG={{ image_repository | default('registry.cn-beijing.aliyuncs.com/yunion') }}/openvswitch:2.12.4-20260212
+BIMG={{ openvswitch_image | default((image_repository | default('registry.cn-beijing.aliyuncs.com/yunion')) + '/openvswitch:2.12.4-20260212') }}
 
 {% if k8s_or_k3s | default('k3s') == 'k3s' %}
 if [ -t 0 ]; then
@@ -45,4 +45,3 @@ docker run --rm --network host $TTY \
     $IMG \
     /usr/bin/$(basename $0) $@
 {% endif %}
-

@@ -232,12 +232,10 @@
 
 - name: Enable cloud systemd services
   service:
-    name: "{{ item }}"
+    name: "{{ executor_service | default('yunion-executor') }}"
     enabled: yes
     state: started
   become: true
-  loop:
-  - yunion-executor
 
 - name: Include cronjobs
   include_role:

@@ -76,6 +76,7 @@ KEY_HOST_NETWORKS = "host_networks"
 KEY_DISK_PATHS = "disk_paths"
 
 KEY_PRIMARY_MASTER_NODE_IP = "primary_master_node_ip"
+KEY_TARGET_ARCHITECTURE = "target_architecture"
 
 def load_config(config_file):
     import yaml
@@ -187,8 +188,25 @@ class OcbootConfig(object):
                 return version
         raise Exception("get attr onecloud_version error")
 
+    def get_target_architectures(self):
+        architectures = set()
+        for node in [self.primary_master_config, self.master_config,
+                     self.worker_config]:
+            if not node:
+                continue
+            architecture = getattr(node, KEY_TARGET_ARCHITECTURE, None)
+            if architecture:
+                architectures.add(architecture)
+        if not architectures:
+            import platform
+            architectures.add(platform.machine())
+        return sorted(architectures)
+
     def ansible_global_vars(self):
-        return get_ansible_global_vars(self.get_onecloud_version())
+        architectures = self.get_target_architectures()
+        force_k3s = True if 'riscv64' in architectures else None
+        return get_ansible_global_vars(
+            self.get_onecloud_version(), force_k3s)
 
     def get_ansible_inventory(self):
         return ansible.get_inventory_config(
@@ -489,6 +507,7 @@ class OnecloudConfig(object):
             self.host_networks = [self.host_networks]
         self.disk_paths = config.get(KEY_DISK_PATHS, None)
         self.primary_master_node_ip = config.get(KEY_PRIMARY_MASTER_NODE_IP, None)
+        self.target_architecture = config.get(KEY_TARGET_ARCHITECTURE, None)
 
     def ansible_vars(self):
         vars = {
@@ -523,6 +542,8 @@ class OnecloudConfig(object):
             vars[KEY_DISK_PATHS] = self.disk_paths
         if self.primary_master_node_ip:
             vars[KEY_PRIMARY_MASTER_NODE_IP] = self.primary_master_node_ip
+        if self.target_architecture:
+            vars[KEY_TARGET_ARCHITECTURE] = self.target_architecture
         return vars
 
 
@@ -556,7 +577,12 @@ class PrimaryMasterConfig(OnecloudConfig):
         self.db_port = config.get('db_port', 3306)
         self.db_password = config.ensure_get('db_password')
         self.onecloud_version = config.ensure_get(KEY_ONECLOUD_VERSION)
-        self.operator_version = config.get(KEY_OPERATOR_VERSION, self.onecloud_version)
+        default_operator_version = self.onecloud_version
+        if self.target_architecture == 'riscv64' and \
+                self.onecloud_version.startswith('v4.0.3-riscv64'):
+            default_operator_version = 'v4.0.3-riscv64.2'
+        self.operator_version = config.get(
+            KEY_OPERATOR_VERSION, default_operator_version)
         self.restore_mode = config.get('restore_mode', False)
 
         # 优先使用配置文件中设置的ip_type，如果没有设置则自动检测
@@ -596,7 +622,11 @@ class PrimaryMasterConfig(OnecloudConfig):
         self.onecloud_user = config.get('onecloud_user', 'admin')
         self.onecloud_user_password = config.get('onecloud_user_password', 'admin@123')
         self.use_ee = config.get('use_ee', False)
-        self.image_repository = config.get('image_repository', consts.REGISTRY_ALI_YUNION)
+        default_image_repository = consts.REGISTRY_ALI_YUNION
+        if self.target_architecture == 'riscv64':
+            default_image_repository = 'ghcr.io/yinjiayi'
+        self.image_repository = config.get(
+            'image_repository', default_image_repository)
         if utils.is_below_v3_9(self.onecloud_version):
             self.image_repository = consts.REGISTRY_ALI_YUNIONIO
         self.enable_minio = config.get('enable_minio', False)

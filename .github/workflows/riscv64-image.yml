@@ -1,0 +1,38 @@
+name: Build ocboot RISC-V image
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v4.0.3-riscv64.*'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: [self-hosted, linux, riscv64, openeuler-24.03-riscv64]
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify native architecture
+        run: test "$(uname -m)" = riscv64
+
+      - name: Build and publish ocboot
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '%s' "${GHCR_TOKEN}" | buildah login \
+            --username "${GITHUB_ACTOR}" --password-stdin ghcr.io
+          buildah bud \
+            --arch riscv64 \
+            --label "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
+            --file Dockerfile.riscv64 \
+            --tag ghcr.io/yinjiayi/ocboot:v4.0.3-riscv64.1 .
+          test "$(buildah inspect --format '{{.OCIv1.Architecture}}' \
+            ghcr.io/yinjiayi/ocboot:v4.0.3-riscv64.1)" = riscv64
+          buildah push \
+            ghcr.io/yinjiayi/ocboot:v4.0.3-riscv64.1 \
+            docker://ghcr.io/yinjiayi/ocboot:v4.0.3-riscv64.1
