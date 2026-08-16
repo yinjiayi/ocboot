@@ -66,6 +66,57 @@ spec:
 {% if use_hyper_image %}
   useHyperImage: true
 {% endif %}
+{% if ansible_architecture == 'riscv64' %}
+  etcd:
+    repository: "{{ image_repository }}"
+    version: "{{ cloudpods_etcd_version }}"
+    pod:
+      busyboxImage: "{{ cloudpods_busybox_image }}"
+  hostagent:
+    defaultQemuVersion: "10.0.7"
+    hostCpuPassthrough: true
+    disableProbeKubelet: true
+    HostHealth:
+      imageName: host-health
+      repository: "{{ image_repository }}"
+      tag: "{{ cloudpods_host_health_tag }}"
+    OvnController:
+      imageName: openvswitch
+      repository: "{{ image_repository }}"
+      tag: "{{ cloudpods_openvswitch_tag }}"
+  hostdeployer:
+    imageName: cloudpods
+    repository: "{{ image_repository }}"
+    tag: "{{ onecloud_version }}"
+  hostimage:
+    imageName: host-image
+    repository: "{{ image_repository }}"
+    tag: "{{ cloudpods_host_image_tag }}"
+  lbagent:
+    OvnController:
+      imageName: openvswitch
+      repository: "{{ image_repository }}"
+      tag: "{{ cloudpods_openvswitch_tag }}"
+  monitor:
+    disable: false
+  notify:
+    disable: false
+  victoriaMetrics:
+    disable: false
+    imageName: victoria-metrics
+    repository: "{{ image_repository }}"
+    tag: "{{ cloudpods_victoria_metrics_tag }}"
+  web:
+    imageName: web
+    repository: "{{ image_repository }}"
+    tag: "{{ cloudpods_web_tag }}"
+    useHTTP: false
+  webconsole:
+    Guacd:
+      imageName: guacd
+      repository: "{{ image_repository }}"
+      tag: "{{ cloudpods_guacd_tag }}"
+{% endif %}
   loadBalancerEndpoint: "{{ api_endpoint }}"
 {% if disable_resource_management %}
   disableResourceManagement: true
@@ -156,7 +207,7 @@ spec:
         effect: NoSchedule
       containers:
       - name: onecloud-operator
-        image: {{ image_repository }}/onecloud-operator:{{ onecloud_version }}
+        image: {{ image_repository }}/onecloud-operator:{{ operator_version }}
         imagePullPolicy: IfNotPresent
         command:
         - "/bin/onecloud-controller-manager"

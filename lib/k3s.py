@@ -1,5 +1,7 @@
 import os
 import hashlib
+import platform
+import shlex
 
 from lib import consts
 from lib.cmd import run_cmd
@@ -13,6 +15,16 @@ def GET_AIRGAP_DIR():
 
 
 VERSION_V1_28_5_K3S_1 = "v1.28.5+k3s1"
+VERSION_V1_28_5_K3S_1_RISCV64_1 = "v1.28.5+k3s1-riscv64.1"
+
+UPSTREAM_RELEASE_URL = (
+    "https://github.com/k3s-io/k3s/releases/download/"
+    "v1.28.5%2Bk3s1"
+)
+RISCV64_RELEASE_URL = (
+    "https://github.com/yinjiayi/k3s/releases/download/"
+    "v1.28.5%2Bk3s1-riscv64.1"
+)
 
 '''
 from:
@@ -30,6 +42,21 @@ SHA256_CHECK_SUM = {
 }
 
 
+ARCH_ALIASES = {
+    'amd64': 'amd64',
+    'x86_64': 'amd64',
+    'arm64': 'arm64',
+    'aarch64': 'arm64',
+    'riscv64': 'riscv64',
+}
+
+ARCH_ASSETS = {
+    'amd64': ('k3s', 'k3s-airgap-images-amd64.tar.zst'),
+    'arm64': ('k3s-arm64', 'k3s-airgap-images-arm64.tar.zst'),
+    'riscv64': ('k3s-riscv64', 'k3s-airgap-images-riscv64.tar.zst'),
+}
+
+
 def cal_file_sha256(filename):
     sha256_hash = hashlib.sha256()
     with open(filename,"rb") as f:
@@ -39,10 +66,38 @@ def cal_file_sha256(filename):
         return sha256_hash.hexdigest()
 
 
-def download_asset(dest_dir, k3s_version, asset_url):
-    asset_name = os.path.basename(asset_url)
+def normalize_architecture(architecture):
+    normalized = ARCH_ALIASES.get(architecture)
+    if normalized is None:
+        raise ValueError("unsupported K3s architecture: %s" % architecture)
+    return normalized
+
+
+def parse_checksum_manifest(content):
+    checksums = {}
+    for line in content.splitlines():
+        fields = line.split()
+        if len(fields) != 2 or len(fields[0]) != 64:
+            continue
+        checksums[fields[1].lstrip('*')] = fields[0].lower()
+    return checksums
+
+
+def _download_file(asset_url, target_path):
+    temporary_path = "%s.part" % target_path
+    run_cmd(
+        'curl --fail --location --retry 5 --retry-all-errors '
+        '--output %s %s' % (
+            shlex.quote(temporary_path),
+            shlex.quote(asset_url)),
+        no_strip=True,
+        realtime_output=True)
+    os.replace(temporary_path, target_path)
+
+
+def download_asset(dest_dir, asset_url, expect_checksum, target_name=None):
+    asset_name = target_name or os.path.basename(asset_url)
     target_path = os.path.join(dest_dir, asset_name)
-    expect_checksum = SHA256_CHECK_SUM[k3s_version][asset_name]
     if os.path.exists(target_path):
         exists_checksum = cal_file_sha256(target_path)
         if exists_checksum == expect_checksum:
@@ -50,7 +105,28 @@ def download_asset(dest_dir, k3s_version, asset_url):
             return
         else:
             print(f"{target_path}'s sha256 checksum {exists_checksum} != {expect_checksum}, redownload it.")
-    run_cmd(f'curl -L {asset_url} > {target_path}', no_strip=True, realtime_output=True)
+    _download_file(asset_url, target_path)
+    downloaded_checksum = cal_file_sha256(target_path)
+    if downloaded_checksum != expect_checksum:
+        os.unlink(target_path)
+        raise ValueError(
+            "%s's sha256 checksum %s != %s" % (
+                asset_name, downloaded_checksum, expect_checksum))
+
+
+def _riscv64_checksums(dest_dir, release_url):
+    manifest_name = 'sha256sum-riscv64.txt'
+    manifest_path = os.path.join(dest_dir, manifest_name)
+    _download_file('%s/%s' % (release_url, manifest_name), manifest_path)
+    with open(manifest_path) as manifest:
+        checksums = parse_checksum_manifest(manifest.read())
+    required = set(ARCH_ASSETS['riscv64']) | {'install.sh'}
+    missing = required.difference(checksums)
+    if missing:
+        raise ValueError(
+            "RISC-V K3s checksum manifest misses: %s" %
+            ', '.join(sorted(missing)))
+    return checksums
 
 
 NO_SUCH_FILE_OR_DIR_ERR = [
@@ -80,18 +156,44 @@ def is_using_k3s(ssh_client=None, use_sudo=False):
             raise e
 
 
-def init_airgap_assets(dest_dir, k3s_version):
+def init_airgap_assets(dest_dir, k3s_version=VERSION_V1_28_5_K3S_1,
+                       architectures=None):
     # usage: K3S_URL_PREFIX=http://LOCAL_k3s_host_url
     # in order to speed up testing.
     if not is_using_k3s():
         return
 
-    K3S_URL_PREFIX = os.environ.get('K3S_URL_PREFIX', 'https://github.com/k3s-io/k3s/releases/download/v1.28.5%2Bk3s1')
-
     if not os.path.exists(dest_dir):
         os.makedirs(dest_dir)
-    download_asset(dest_dir, k3s_version, f'{K3S_URL_PREFIX}/k3s')
-    download_asset(dest_dir, k3s_version, f'{K3S_URL_PREFIX}/k3s-arm64')
-    download_asset(dest_dir, k3s_version, f'{K3S_URL_PREFIX}/k3s-airgap-images-arm64.tar.zst')
-    download_asset(dest_dir, k3s_version, f'{K3S_URL_PREFIX}/k3s-airgap-images-amd64.tar.zst')
 
+    if architectures is None:
+        configured = os.environ.get('K3S_ASSET_ARCHITECTURES', '')
+        architectures = configured.split(',') if configured else [platform.machine()]
+    architectures = {
+        normalize_architecture(architecture.strip())
+        for architecture in architectures if architecture.strip()
+    }
+
+    upstream_url = os.environ.get('K3S_URL_PREFIX', UPSTREAM_RELEASE_URL)
+    riscv64_url = os.environ.get(
+        'K3S_RISCV64_URL_PREFIX', RISCV64_RELEASE_URL)
+
+    for architecture in sorted(architectures.difference({'riscv64'})):
+        for asset_name in ARCH_ASSETS[architecture]:
+            download_asset(
+                dest_dir,
+                '%s/%s' % (upstream_url, asset_name),
+                SHA256_CHECK_SUM[k3s_version][asset_name])
+
+    if 'riscv64' in architectures:
+        checksums = _riscv64_checksums(dest_dir, riscv64_url)
+        for asset_name in ARCH_ASSETS['riscv64']:
+            download_asset(
+                dest_dir,
+                '%s/%s' % (riscv64_url, asset_name),
+                checksums[asset_name])
+        download_asset(
+            dest_dir,
+            '%s/install.sh' % riscv64_url,
+            checksums['install.sh'],
+            target_name='k3s-install.sh')

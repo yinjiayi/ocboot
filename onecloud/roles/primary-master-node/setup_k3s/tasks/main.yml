@@ -96,6 +96,7 @@
   template:
     src: calico.yaml.j2
     dest: /var/lib/rancher/k3s/server/manifests/calico.yaml
+  when: ansible_architecture != 'riscv64'
 
 - name: Update traefik component configuration
   copy:
@@ -103,6 +104,6 @@
     dest: /var/lib/rancher/k3s/server/manifests/traefik-config.yaml
 
 - name: Copy traefik daemonset yaml to /var/lib/rancher/k3s/server/manifests/traefik-ds.yaml
-  copy:
-    src: traefik-ds.yaml
+  template:
+    src: traefik-ds.yaml.j2
     dest: /var/lib/rancher/k3s/server/manifests/traefik-ds.yaml

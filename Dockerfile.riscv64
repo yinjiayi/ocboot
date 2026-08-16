@@ -1,0 +1,30 @@
+FROM ghcr.io/yinjiayi/k3s-alpine:3.20-riscv64.1
+
+ENV TZ=UTC
+RUN apk --no-cache add \
+        bash \
+        build-base \
+        ca-certificates \
+        cargo \
+        curl \
+        git \
+        libffi-dev \
+        mariadb-client \
+        mariadb-dev \
+        openssh-client \
+        openssl \
+        openssl-dev \
+        py3-pip \
+        python3 \
+        python3-dev \
+        rsync \
+        rust \
+        sshpass \
+        sudo && \
+    python3 -m pip install --break-system-packages --no-cache-dir \
+        mysqlclient pywinrm 'ansible<=9.0.0' && \
+    apk del build-base cargo libffi-dev mariadb-dev openssl-dev python3-dev rust
+
+ENV K3S_AIRGAP_DIR=/ocboot/airgap_assets
+ENV PATH=$PATH:/ocboot
+WORKDIR /ocboot
