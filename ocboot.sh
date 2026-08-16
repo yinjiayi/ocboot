@@ -68,7 +68,8 @@ buildah_extra_args=()
 
 # buildah accepts --env since 1.23
 echo "buildah version: $buildah_version"
-if [[ $buildah_version_major -eq 1 ]] && [[ "$buildah_version_minor" -gt 23 ]]; then
+if [[ $buildah_version_major -gt 1 ]] || \
+    { [[ $buildah_version_major -eq 1 ]] && [[ "$buildah_version_minor" -gt 23 ]]; }; then
     buildah_extra_args+=(-e ANSIBLE_VERBOSITY="${ANSIBLE_VERBOSITY:-0}")
     buildah_extra_args+=(-e HOME="$HOME")
     buildah_extra_args+=(-e K3S_AIRGAP_DIR="$ROOT_DIR/airgap_assets")
@@ -117,6 +118,13 @@ fi
 
 mkdir -p "$HOME/.kube"
 
+airgap_installer_volume=()
+if [[ -f "$(pwd)/airgap_assets/k3s-install.sh" ]]; then
+    airgap_installer_volume+=(
+        -v "$(pwd)/airgap_assets/k3s-install.sh:/airgap_assets/k3s-install.sh:ro"
+    )
+fi
+
 # Parse --nvidia-driver-installer-path and --cuda-installer-path from original args and
 # add bind-mounts so installer files outside $(pwd) are accessible in the container.
 extra_installer_volumes=()
@@ -147,6 +155,6 @@ buildah run --isolation chroot --user $(id -u):$(id -g) \
     -v "/etc/passwd:/etc/passwd:ro" \
     -v "/etc/group:/etc/group:ro" \
     -v "$(pwd):$ROOT_DIR" \
-    -v "$(pwd)/airgap_assets/k3s-install.sh:/airgap_assets/k3s-install.sh:ro" \
+    "${airgap_installer_volume[@]}" \
     "${extra_installer_volumes[@]}" \
     "$CONTAINER_NAME" $CMD "${origin_args[@]}" $cmd_extra_args
