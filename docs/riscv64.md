@@ -18,4 +18,4 @@ passwords, then run:
 ./ocboot.sh install config-openeuler-riscv64.yml
 ```
 
-The RISC-V ocboot container is `ghcr.io/yinjiayi/ocboot:v4.0.3-riscv64.2`.
+The RISC-V ocboot container is `ghcr.io/yinjiayi/ocboot:v4.0.3-riscv64.3`.
