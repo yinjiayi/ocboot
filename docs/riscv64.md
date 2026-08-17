@@ -19,3 +19,7 @@ passwords, then run:
 ```
 
 The RISC-V ocboot container is `ghcr.io/yinjiayi/ocboot:v4.0.3-riscv64.5`.
+It is published by the pinned-source workflow in
+`yinjiayi/cloudpods-riscv64-releases`; this repository's tag workflow performs
+the native build and runtime checks without requiring cross-repository package
+write access.

@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   build:
@@ -55,20 +54,28 @@ jobs:
       - name: Verify native architecture
         run: test "$(uname -m)" = riscv64
 
-      - name: Build and publish ocboot
-        env:
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and verify ocboot
         run: |
           set -Eeuo pipefail
           image=ghcr.io/yinjiayi/ocboot:${GITHUB_REF_NAME}
-          printf '%s' "${GHCR_TOKEN}" | buildah login \
-            --username "${GITHUB_ACTOR}" --password-stdin ghcr.io
+          verifier=ocboot-image-verifier-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}
+          cleanup() {
+            buildah rm "${verifier}" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
           buildah bud \
             --arch riscv64 \
             --label "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
             --file "${OCBOOT_SOURCE_ROOT}/Dockerfile.riscv64" \
             --tag "${image}" \
             "${OCBOOT_SOURCE_ROOT}"
           test "$(buildah inspect --format '{{.OCIv1.Architecture}}' \
             "${image}")" = riscv64
-          buildah push "${image}" "docker://${image}"
+          buildah from --name "${verifier}" "${image}" >/dev/null
+          buildah run "${verifier}" -- sh -ec '
+            test "$(uname -m)" = riscv64
+            test "${K3S_AIRGAP_DIR}" = /ocboot/airgap_assets
+            python3 --version
+            ansible --version
+          '
