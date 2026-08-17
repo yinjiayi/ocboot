@@ -24,6 +24,6 @@ primary_master_node:
   pod_network_cidr: 10.40.0.0/16
   service_cidr: 10.96.0.0/12
   as_host: true
-  as_host_on_vm: true
+  as_host_on_vm: false
   region: region0
   zone: zone0
