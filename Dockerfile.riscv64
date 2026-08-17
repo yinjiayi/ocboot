@@ -1,6 +1,9 @@
 FROM ghcr.io/yinjiayi/k3s-alpine:3.20-riscv64.1
 
 ENV TZ=UTC
+RUN sed -i \
+        's!https://dl-cdn.alpinelinux.org/alpine/!https://mirrors.aliyun.com/alpine/!g' \
+        /etc/apk/repositories
 RUN apk --no-cache add \
         bash \
         build-base \
