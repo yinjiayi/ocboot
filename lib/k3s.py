@@ -15,7 +15,7 @@ def GET_AIRGAP_DIR():
 
 
 VERSION_V1_28_5_K3S_1 = "v1.28.5+k3s1"
-VERSION_V1_28_5_K3S_1_RISCV64_1 = "v1.28.5+k3s1-riscv64.1"
+VERSION_V1_28_5_K3S_1_RISCV64_2 = "v1.28.5+k3s1-riscv64.2"
 
 UPSTREAM_RELEASE_URL = (
     "https://github.com/k3s-io/k3s/releases/download/"
@@ -23,7 +23,7 @@ UPSTREAM_RELEASE_URL = (
 )
 RISCV64_RELEASE_URL = (
     "https://github.com/yinjiayi/k3s/releases/download/"
-    "v1.28.5%2Bk3s1-riscv64.1"
+    "v1.28.5%2Bk3s1-riscv64.2"
 )
 
 '''
