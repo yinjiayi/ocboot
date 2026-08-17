@@ -37,16 +37,16 @@ jobs:
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -Eeuo pipefail
+          image=ghcr.io/yinjiayi/ocboot:${GITHUB_REF_NAME}
           printf '%s' "${GHCR_TOKEN}" | buildah login \
             --username "${GITHUB_ACTOR}" --password-stdin ghcr.io
           buildah bud \
             --arch riscv64 \
             --label "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
             --file "${OCBOOT_SOURCE_ROOT}/Dockerfile.riscv64" \
-            --tag ghcr.io/yinjiayi/ocboot:v4.0.3-riscv64.3 \
+            --tag "${image}" \
             "${OCBOOT_SOURCE_ROOT}"
           test "$(buildah inspect --format '{{.OCIv1.Architecture}}' \
-            ghcr.io/yinjiayi/ocboot:v4.0.3-riscv64.3)" = riscv64
-          buildah push \
-            ghcr.io/yinjiayi/ocboot:v4.0.3-riscv64.3 \
-            docker://ghcr.io/yinjiayi/ocboot:v4.0.3-riscv64.3
+            "${image}")" = riscv64
+          buildah push "${image}" "docker://${image}"
