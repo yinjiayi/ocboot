@@ -107,7 +107,7 @@ spec:
     repository: "{{ image_repository }}"
     tag: "{{ cloudpods_victoria_metrics_tag }}"
   web:
-    imageName: web
+    imageName: "{{ cloudpods_web_image_name | default('web') }}"
     repository: "{{ image_repository }}"
     tag: "{{ cloudpods_web_tag }}"
     useHTTP: false
