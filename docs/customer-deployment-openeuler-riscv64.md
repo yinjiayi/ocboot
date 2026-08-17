@@ -67,6 +67,7 @@ climc host-list
 curl -kI https://SERVER_IP/
 ```
 
-验收标准：K3s 版本包含 `riscv64.1`；节点为 `Ready`；`onecloud` 命名空间
-Pod 均为 `Running` 或已完成；`host-list` 可看到本机；浏览器可通过
+验收标准：K3s 版本包含 `v1.28.5+k3s1-riscv64.3`；节点为 `Ready`；
+`onecloud` 命名空间 Pod 均为 `Running` 或已完成；`host-list` 可看到本机；
+浏览器可通过
 `https://SERVER_IP/` 使用配置中的管理员账号登录。
