@@ -29,7 +29,7 @@ Pod 网段为 `10.40.0.0/16`，Service 网段为 `10.96.0.0/12`，两者不能�
 ## 2. 准备配置
 
 ```bash
-git clone --depth 1 --branch v4.0.3-riscv64.6 \
+git clone --depth 1 --branch v4.0.3-riscv64.7 \
   https://github.com/yinjiayi/ocboot.git
 cd ocboot
 cp config-example-openeuler-riscv64.yml config.yml
@@ -68,7 +68,7 @@ cgroup v2 并自动重启一次。从独立管理机执行时，Ansible 会在�
 原样再次执行本节安装命令。ocboot 的安装任务可幂等重入。
 
 ocboot 会从 GitHub Pages 镜像校验并下载 `yinjiayi/k3s` 的 `riscv64` 二进制
-和离线镜像包，安装同一 Pages 仓库中的 QEMU 10.0.7、Open vSwitch、
+和离线镜像包，安装同一 Pages 仓库中的 QEMU 10.0.7-6、Open vSwitch、
 executor 和 RISC-V 固件，然后从 `ghcr.io/yinjiayi` 部署 Cloudpods。
 
 ## 4. 验收
