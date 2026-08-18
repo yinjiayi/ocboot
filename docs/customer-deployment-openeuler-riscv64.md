@@ -29,7 +29,7 @@ Pod 网段为 `10.40.0.0/16`，Service 网段为 `10.96.0.0/12`，两者不能�
 ## 2. 准备配置
 
 ```bash
-git clone --depth 1 --branch v4.0.3-riscv64.7 \
+git clone --depth 1 --branch v4.0.3-riscv64.8 \
   https://github.com/yinjiayi/ocboot.git
 cd ocboot
 cp config-example-openeuler-riscv64.yml config.yml
