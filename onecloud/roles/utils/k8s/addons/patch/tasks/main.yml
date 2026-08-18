@@ -1,7 +1,25 @@
+- name: check whether {{ resource }} {{ namespace }}/{{ resource_name }} exists
+  shell: |
+    KUBECONFIG="{{ ENV_KUBECONFIG }}" {{ K3S_CMDLINE_PREFIX }} kubectl get \
+      "{{ resource }}" -n "{{ namespace }}" "{{ resource_name }}" \
+      --ignore-not-found -o name
+  become: yes
+  args:
+    executable: /bin/bash
+  register: addon_patch_target
+  changed_when: false
+
+- name: remove stale {{ resource }} {{ namespace }}/{{ resource_name }} patch when target is absent
+  file:
+    path: "/tmp/{{ resource_name }}.patch.yml"
+    state: absent
+  when: (addon_patch_target.stdout | trim | length) == 0
+
 - name: copy {{ resource }} {{ namespace }}/{{ resource_name }} patch to /tmp/{{ resource_name }}.patch.yml
   copy:
     src: "{{ resource }}.patch.yml"
     dest: "/tmp/{{ resource_name }}.patch.yml"
+  when: (addon_patch_target.stdout | trim | length) > 0
 
 - name: patch {{ resource }} {{ namespace }}/{{ resource_name }} onecloud.yunion.io/controller node selector
   shell: |
@@ -9,3 +27,4 @@
   become: yes
   args:
     executable: /bin/bash
+  when: (addon_patch_target.stdout | trim | length) > 0
