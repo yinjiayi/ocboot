@@ -15,15 +15,15 @@ def GET_AIRGAP_DIR():
 
 
 VERSION_V1_28_5_K3S_1 = "v1.28.5+k3s1"
-VERSION_V1_28_5_K3S_1_RISCV64_3 = "v1.28.5+k3s1-riscv64.3"
+VERSION_V1_28_5_K3S_1_RISCV64_4 = "v1.28.5+k3s1-riscv64.4"
 
 UPSTREAM_RELEASE_URL = (
     "https://github.com/k3s-io/k3s/releases/download/"
     "v1.28.5%2Bk3s1"
 )
 RISCV64_RELEASE_URL = (
-    "https://github.com/yinjiayi/k3s/releases/download/"
-    "v1.28.5%2Bk3s1-riscv64.3"
+    "https://yinjiayi.github.io/cloudpods-riscv64-releases/k3s/"
+    "v1.28.5-k3s1-riscv64.4"
 )
 
 '''
@@ -87,6 +87,8 @@ def _download_file(asset_url, target_path):
     temporary_path = "%s.part" % target_path
     run_cmd(
         'curl --fail --location --retry 5 --retry-all-errors '
+        '--retry-delay 5 --connect-timeout 20 --max-time 1800 '
+        '--speed-limit 1024 --speed-time 60 '
         '--output %s %s' % (
             shlex.quote(temporary_path),
             shlex.quote(asset_url)),
