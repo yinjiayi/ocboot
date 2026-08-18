@@ -657,7 +657,7 @@ class PrimaryMasterConfig(OnecloudConfig):
         default_operator_version = self.onecloud_version
         if self.target_architecture == 'riscv64' and \
                 self.onecloud_version.startswith('v4.0.3-riscv64'):
-            default_operator_version = 'v4.0.3-riscv64.2'
+            default_operator_version = 'v4.0.3-riscv64.3'
         self.operator_version = config.get(
             KEY_OPERATOR_VERSION, default_operator_version)
         self.restore_mode = config.get('restore_mode', False)

@@ -9,7 +9,7 @@ DEFAULT_REPO=registry.cn-beijing.aliyuncs.com/yunionio
 DEFAULT_VERSION=v4-k3s.4
 if [[ "$HOST_ARCH" == "riscv64" ]]; then
     DEFAULT_REPO=ghcr.io/yinjiayi
-    DEFAULT_VERSION=v4.0.3-riscv64.5
+    DEFAULT_VERSION=v4.0.3-riscv64.6
 fi
 IMAGE_REPOSITORY=${IMAGE_REPOSITORY:-$DEFAULT_REPO}
 VERSION=${VERSION:-$DEFAULT_VERSION}
@@ -18,10 +18,12 @@ OCBOOT_IMAGE="$IMAGE_REPOSITORY/ocboot:$VERSION"
 CUR_DIR="$(pwd)"
 CONTAINER_NAME="buildah-ocboot"
 
-alias buildah="sudo buildah"
+if (( EUID != 0 )); then
+    alias buildah="sudo buildah"
+fi
 
 ensure_buildah() {
-    if ! [ -x "$(command -v buildah)" ]; then
+    if ! command -v buildah >/dev/null 2>&1; then
         echo "Installing buildah ..."
         ./scripts/install-buildah.sh
     fi
@@ -71,6 +73,7 @@ echo "buildah version: $buildah_version"
 if [[ $buildah_version_major -gt 1 ]] || \
     { [[ $buildah_version_major -eq 1 ]] && [[ "$buildah_version_minor" -gt 23 ]]; }; then
     buildah_extra_args+=(-e ANSIBLE_VERBOSITY="${ANSIBLE_VERBOSITY:-0}")
+    buildah_extra_args+=(-e ANSIBLE_ASK_PASS="${ANSIBLE_ASK_PASS:-false}")
     buildah_extra_args+=(-e HOME="$HOME")
     buildah_extra_args+=(-e K3S_AIRGAP_DIR="$ROOT_DIR/airgap_assets")
 fi

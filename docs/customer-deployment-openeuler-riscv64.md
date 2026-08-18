@@ -19,6 +19,7 @@ test -c /dev/kvm
 test -c /dev/net/tun
 ! command -v kubeadm >/dev/null
 dnf install -y git buildah curl
+buildah --version
 ```
 
 如果检查发现 `kubeadm`，请改用干净系统，不要与已有 Kubernetes 混装。默认
@@ -28,7 +29,7 @@ Pod 网段为 `10.40.0.0/16`，Service 网段为 `10.96.0.0/12`，两者不能�
 ## 2. 准备配置
 
 ```bash
-git clone --depth 1 --branch v4.0.3-riscv64.5 \
+git clone --depth 1 --branch v4.0.3-riscv64.6 \
   https://github.com/yinjiayi/ocboot.git
 cd ocboot
 cp config-example-openeuler-riscv64.yml config.yml
@@ -43,15 +44,32 @@ vi config.yml
 - 保持 `target_architecture: riscv64`、`image_repository: ghcr.io/yinjiayi`
   以及交付版本号不变。
 
+ocboot 通过 SSH 管理目标节点。目标节点可以使用 root 免密 SSH；如果现场只允许
+密码登录，不要创建额外的持久私钥，安装时按下一节启用交互式密码提示。
+
 ## 3. 安装
 
 ```bash
 ./ocboot.sh install config.yml
 ```
 
-ocboot 会校验并下载 `yinjiayi/k3s` 的 `riscv64` 二进制和离线镜像包，安装
-GitHub Pages RPM 仓库中的 QEMU 10.0.7、Open vSwitch、executor 和 RISC-V
-固件，然后从 `ghcr.io/yinjiayi` 部署 Cloudpods。
+仅配置了 SSH 密码时执行：
+
+```bash
+ANSIBLE_ASK_PASS=true ./ocboot.sh install config.yml
+```
+
+按提示输入目标节点 SSH 密码。该密码只进入本次 Ansible 进程，不写入
+`config.yml`、inventory 或容器镜像。
+
+如果机器当前使用 legacy cgroup，ocboot 会为 openEuler RISC-V 内核启用统一
+cgroup v2 并自动重启一次。从独立管理机执行时，Ansible 会在目标机恢复 SSH 后
+继续安装；如果在目标机本机执行 ocboot，本机重启会终止安装进程，请重新登录并
+原样再次执行本节安装命令。ocboot 的安装任务可幂等重入。
+
+ocboot 会从 GitHub Pages 镜像校验并下载 `yinjiayi/k3s` 的 `riscv64` 二进制
+和离线镜像包，安装同一 Pages 仓库中的 QEMU 10.0.7、Open vSwitch、
+executor 和 RISC-V 固件，然后从 `ghcr.io/yinjiayi` 部署 Cloudpods。
 
 ## 4. 验收
 
@@ -67,7 +85,7 @@ climc host-list
 curl -kI https://SERVER_IP/
 ```
 
-验收标准：K3s 版本包含 `v1.28.5+k3s1-riscv64.3`；节点为 `Ready`；
+验收标准：K3s 版本包含 `v1.28.5+k3s1-riscv64.4`；节点为 `Ready`；
 `onecloud` 命名空间 Pod 均为 `Running` 或已完成；`host-list` 可看到本机；
 浏览器可通过
 `https://SERVER_IP/` 使用配置中的管理员账号登录。
