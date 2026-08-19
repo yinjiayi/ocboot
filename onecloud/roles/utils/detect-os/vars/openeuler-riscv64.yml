@@ -48,3 +48,4 @@ cloudpods_victoria_metrics_tag: v1.129.1-1-riscv64.1
 cloudpods_web_image_name: cloudpods-web
 cloudpods_web_tag: v4.0.3-riscv64-ui2
 cloudpods_guacd_tag: 1.6.0-riscv64.1
+cloudpods_kubeserver_tag: v4.0.3-riscv64.5
