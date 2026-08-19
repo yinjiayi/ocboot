@@ -21,3 +21,15 @@ class TestRiscv64Release(unittest.TestCase):
             "network-create3 --server-type hostlocal __host_local__ vh0",
             task,
         )
+
+    def test_openeuler_riscv64_keeps_the_vendor_kernel(self):
+        repository = Path(__file__).resolve().parents[1]
+        kernel_tasks = (
+            repository
+            / "onecloud/roles/utils/kernel-check/tasks/openeuler-24-riscv64.yml"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("Keep the openEuler vendor kernel on RISC-V", kernel_tasks)
+        self.assertNotIn("reboot:", kernel_tasks)
+        self.assertNotIn("dnf:", kernel_tasks)
+        self.assertNotIn("yum:", kernel_tasks)
