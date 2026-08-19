@@ -13,7 +13,7 @@ primary_master_node:
   db_host: 192.0.2.10
   db_user: root
   db_password: CHANGE_ME_DB_PASSWORD
-  onecloud_version: v4.0.3-riscv64.5
+  onecloud_version: v4.0.3-riscv64.6
   operator_version: v4.0.3-riscv64.3
   target_architecture: riscv64
   image_repository: ghcr.io/yinjiayi

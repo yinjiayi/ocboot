@@ -29,7 +29,7 @@ class FakeCluster:
         return None
 
     def get_current_version(self):
-        return "v4.0.3-riscv64.5"
+        return "v4.0.3-riscv64.6"
 
     def get_cluster_controlplane_host(self):
         return "10.213.6.187"
