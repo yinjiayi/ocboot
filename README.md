@@ -1,5 +1,9 @@
 # 介绍
 
+openEuler 24.03 LTS SP3 `riscv64` 的自建 K3s 安装说明见
+[客户部署手册](docs/customer-deployment-openeuler-riscv64.md)，实现说明见
+[docs/riscv64.md](docs/riscv64.md)。该路径不安装原生 Kubernetes。
+
 ocboot 能够快速的在 CentOS 7 、Kylin V10、Debian 10等机器上搭建部署 [Cloudpods](https://github.com/yunionio/cloudpods) 服务。
 
 ocboot 依赖 ansible-playbook 部署 cloudpods 服务，可以在单节点使用 local 的方式部署，也可以在多个节点使用 ssh 的方式同时部署。

@@ -1,0 +1,29 @@
+mariadb_node:
+  hostname: 192.0.2.10
+  port: 22
+  user: root
+  db_user: root
+  db_password: CHANGE_ME_DB_PASSWORD
+
+primary_master_node:
+  hostname: 192.0.2.10
+  node_ip: 192.0.2.10
+  port: 22
+  user: root
+  db_host: 192.0.2.10
+  db_user: root
+  db_password: CHANGE_ME_DB_PASSWORD
+  onecloud_version: v4.0.3-riscv64.6
+  operator_version: v4.0.3-riscv64.3
+  target_architecture: riscv64
+  image_repository: ghcr.io/yinjiayi
+  onecloud_user: admin
+  onecloud_user_password: CHANGE_ME_ADMIN_PASSWORD
+  controlplane_host: 192.0.2.10
+  controlplane_port: "6443"
+  pod_network_cidr: 10.40.0.0/16
+  service_cidr: 10.96.0.0/12
+  as_host: true
+  as_host_on_vm: false
+  region: region0
+  zone: zone0

@@ -4,18 +4,26 @@ shopt -s expand_aliases
 
 set -e
 
+HOST_ARCH=$(uname -m)
 DEFAULT_REPO=registry.cn-beijing.aliyuncs.com/yunionio
+DEFAULT_VERSION=v4-k3s.4
+if [[ "$HOST_ARCH" == "riscv64" ]]; then
+    DEFAULT_REPO=ghcr.io/yinjiayi
+    DEFAULT_VERSION=v4.0.3-riscv64.15
+fi
 IMAGE_REPOSITORY=${IMAGE_REPOSITORY:-$DEFAULT_REPO}
-VERSION=${VERSION:-v4-k3s.4}
+VERSION=${VERSION:-$DEFAULT_VERSION}
 OCBOOT_IMAGE="$IMAGE_REPOSITORY/ocboot:$VERSION"
 
 CUR_DIR="$(pwd)"
 CONTAINER_NAME="buildah-ocboot"
 
-alias buildah="sudo buildah"
+if (( EUID != 0 )); then
+    alias buildah="sudo buildah"
+fi
 
 ensure_buildah() {
-    if ! [ -x "$(command -v buildah)" ]; then
+    if ! command -v buildah >/dev/null 2>&1; then
         echo "Installing buildah ..."
         ./scripts/install-buildah.sh
     fi
@@ -62,9 +70,12 @@ buildah_extra_args=()
 
 # buildah accepts --env since 1.23
 echo "buildah version: $buildah_version"
-if [[ $buildah_version_major -eq 1 ]] && [[ "$buildah_version_minor" -gt 23 ]]; then
+if [[ $buildah_version_major -gt 1 ]] || \
+    { [[ $buildah_version_major -eq 1 ]] && [[ "$buildah_version_minor" -gt 23 ]]; }; then
     buildah_extra_args+=(-e ANSIBLE_VERBOSITY="${ANSIBLE_VERBOSITY:-0}")
+    buildah_extra_args+=(-e ANSIBLE_ASK_PASS="${ANSIBLE_ASK_PASS:-false}")
     buildah_extra_args+=(-e HOME="$HOME")
+    buildah_extra_args+=(-e K3S_AIRGAP_DIR="$ROOT_DIR/airgap_assets")
 fi
 
 cmd_extra_args=""
@@ -78,6 +89,13 @@ if [[ "$1" == "run.py" ]]; then
 fi
 
 mkdir -p "$HOME/.kube"
+
+airgap_installer_volume=()
+if [[ -f "$(pwd)/airgap_assets/k3s-install.sh" ]]; then
+    airgap_installer_volume+=(
+        -v "$(pwd)/airgap_assets/k3s-install.sh:/airgap_assets/k3s-install.sh:ro"
+    )
+fi
 
 # Parse --nvidia-driver-installer-path and --cuda-installer-path from args and
 # add bind-mounts so the installer files are accessible inside the container at
@@ -110,6 +128,6 @@ buildah run --isolation chroot --user $(id -u):$(id -g) \
     -v "/etc/passwd:/etc/passwd:ro" \
     -v "/etc/group:/etc/group:ro" \
     -v "$(pwd):$ROOT_DIR" \
-    -v "$(pwd)/airgap_assets/k3s-install.sh:/airgap_assets/k3s-install.sh:ro" \
+    "${airgap_installer_volume[@]}" \
     "${extra_installer_volumes[@]}" \
     "$CONTAINER_NAME" $CMD $origin_args $cmd_extra_args

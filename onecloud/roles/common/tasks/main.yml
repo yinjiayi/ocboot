@@ -94,7 +94,15 @@
     sudo iptables -t raw -X
     sudo iptables -t raw -P PREROUTING ACCEPT
     sudo iptables -t raw -P OUTPUT ACCEPT
-    sudo service iptables save || :
+    # openEuler's service(8) wrapper accepts only basic LSB actions and rejects
+    # `service iptables save`.  Persist the reset ruleset directly so the
+    # following restart cannot restore the distribution's terminal REJECT
+    # rules and block Pod-to-ClusterIP traffic.
+    if [ -f /etc/sysconfig/iptables ]; then
+      sudo /bin/bash -c 'umask 077; iptables-save > /etc/sysconfig/iptables'
+    else
+      sudo service iptables save || :
+    fi
     sudo service iptables restart || :
   args:
     executable: /bin/bash
@@ -232,12 +240,10 @@
 
 - name: Enable cloud systemd services
   service:
-    name: "{{ item }}"
+    name: "{{ executor_service | default('yunion-executor') }}"
     enabled: yes
     state: started
   become: true
-  loop:
-  - yunion-executor
 
 - name: Include cronjobs
   include_role:

@@ -1,0 +1,5 @@
+- name: Keep the openEuler vendor kernel on RISC-V
+  debug:
+    msg: >-
+      The openEuler RISC-V kernel provides the platform KVM support and is not
+      replaced by an x86_64 or aarch64 Yunion kernel package.

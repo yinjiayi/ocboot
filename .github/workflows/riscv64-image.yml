@@ -1,0 +1,81 @@
+name: Build ocboot RISC-V image
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v4.0.3-riscv64.*'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: [self-hosted, linux, riscv64, openeuler-24.03-riscv64]
+    timeout-minutes: 90
+    steps:
+      - name: Fetch pinned workflow source with native curl
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          source_root=${RUNNER_TEMP}/ocboot-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}
+          cache_root=/var/cache/cloudpods-build
+          cache_archive=${cache_root}/ocboot-source-${GITHUB_SHA}.tar.gz
+          cache_sha256=${cache_archive}.sha256
+          install -d -m 0755 "${source_root}"
+          install -d -m 0755 "${cache_root}"
+
+          cache_valid=false
+          if test -s "${cache_archive}" && test -s "${cache_sha256}"; then
+            expected_sha256=$(awk 'NR == 1 {print $1}' "${cache_sha256}")
+            if test -n "${expected_sha256}" && \
+                echo "${expected_sha256}  ${cache_archive}" | sha256sum -c - && \
+                tar -tzf "${cache_archive}" >/dev/null; then
+              cache_valid=true
+            fi
+          fi
+
+          if test "${cache_valid}" != true; then
+            cache_tmp=${cache_archive}.tmp-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}
+            curl --fail --location --retry 10 --retry-all-errors \
+              --connect-timeout 20 --max-time 600 \
+              --output "${cache_tmp}" \
+              "https://codeload.github.com/${GITHUB_REPOSITORY}/tar.gz/${GITHUB_SHA}"
+            tar -tzf "${cache_tmp}" >/dev/null
+            sha256sum "${cache_tmp}" > "${cache_tmp}.sha256"
+            mv "${cache_tmp}" "${cache_archive}"
+            mv "${cache_tmp}.sha256" "${cache_sha256}"
+          fi
+
+          tar -C "${source_root}" --strip-components=1 -xzf "${cache_archive}"
+          test -f "${source_root}/Dockerfile.riscv64"
+          echo "OCBOOT_SOURCE_ROOT=${source_root}" >> "${GITHUB_ENV}"
+
+      - name: Verify native architecture
+        run: test "$(uname -m)" = riscv64
+
+      - name: Build and verify ocboot
+        run: |
+          set -Eeuo pipefail
+          image=ghcr.io/yinjiayi/ocboot:${GITHUB_REF_NAME}
+          verifier=ocboot-image-verifier-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}
+          cleanup() {
+            buildah rm "${verifier}" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          buildah bud \
+            --arch riscv64 \
+            --label "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            --file "${OCBOOT_SOURCE_ROOT}/Dockerfile.riscv64" \
+            --tag "${image}" \
+            "${OCBOOT_SOURCE_ROOT}"
+          test "$(buildah inspect --format '{{.OCIv1.Architecture}}' \
+            "${image}")" = riscv64
+          buildah from --name "${verifier}" "${image}" >/dev/null
+          buildah run "${verifier}" -- sh -ec '
+            test "$(uname -m)" = riscv64
+            test "${K3S_AIRGAP_DIR}" = /ocboot/airgap_assets
+            python3 --version
+            ansible --version
+          '
