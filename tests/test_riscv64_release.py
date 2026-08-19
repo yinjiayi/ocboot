@@ -33,3 +33,46 @@ class TestRiscv64Release(unittest.TestCase):
         self.assertNotIn("reboot:", kernel_tasks)
         self.assertNotIn("dnf:", kernel_tasks)
         self.assertNotIn("yum:", kernel_tasks)
+
+    def test_helm_job_image_is_only_configured_on_k3s_servers(self):
+        repository = Path(__file__).resolve().parents[1]
+        config_template = (
+            repository
+            / "onecloud/roles/k3s/config/templates/config.yaml.j2"
+        ).read_text(encoding="utf-8")
+
+        riscv_image_block = config_template.split(
+            "{% if ansible_architecture == 'riscv64' %}", 1
+        )[1].split("{% else %}", 1)[0]
+
+        self.assertIn("pause-image: {{ k3s_pause_image }}", riscv_image_block)
+        self.assertIn("{% if is_k3s_server %}", riscv_image_block)
+        self.assertIn(
+            "helm-job-image: {{ k3s_helm_job_image }}",
+            riscv_image_block,
+        )
+
+    def test_worker_node_retries_an_inactive_k3s_agent(self):
+        repository = Path(__file__).resolve().parents[1]
+        worker_tasks = (
+            repository
+            / "onecloud/roles/worker-node/tasks/k3s.yml"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("systemctl is-active --quiet k3s-agent", worker_tasks)
+        self.assertNotIn(
+            "test -f /etc/systemd/system/k3s-agent.service",
+            worker_tasks,
+        )
+
+    def test_worker_skips_ceph_image_cache_on_riscv64(self):
+        repository = Path(__file__).resolve().parents[1]
+        worker_tasks = (
+            repository
+            / "onecloud/roles/worker-node/tasks/main.yml"
+        ).read_text(encoding="utf-8")
+        ceph_cache_task = worker_tasks.split(
+            "- name: cache ceph docker image", 1
+        )[1]
+
+        self.assertIn("ansible_architecture != 'riscv64'", ceph_cache_task)
