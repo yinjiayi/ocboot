@@ -214,13 +214,6 @@ class AddNodesConfig(object):
         self.enable_containerd = kwargs.get('runtime') == 'containerd'
 
         for target_node in target_nodes:
-            # check IP:
-            node = cluster.find_node_by_ip_or_hostname(target_node)
-            if node is not None:
-                raise Exception(Red("Node %s(%s) already exists in cluster (By IP Check). " % (
-                    node.get_hostname(), node.get_ip())))
-
-            # check Hostname:
             cli = SSHClient(
                 target_node,
                 ssh_user,
@@ -228,6 +221,22 @@ class AddNodesConfig(object):
                 ssh_port
             )
             target_hostname = cli.get_hostname()
+
+            # check IP:
+            node = cluster.find_node_by_ip_or_hostname(target_node)
+            if node is not None:
+                node_identifiers = {
+                    str(node.get_ip()),
+                    str(node.get_hostname()),
+                }
+                if target_hostname == node.get_hostname() and \
+                        target_node in node_identifiers:
+                    continue
+                raise Exception(Red(
+                    "Node %s(%s) already exists in cluster (By IP Check). " % (
+                        node.get_hostname(), node.get_ip())))
+
+            # check Hostname:
             if target_hostname in target_hostnames:
                 raise Exception(Red(f"Node {target_hostname}[{target_node}] already exists in cluster (By Hostname Check). "))
 

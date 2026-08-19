@@ -26,7 +26,9 @@ node-ip: {{ node_ip }}
 {% endif %}
 {% if ansible_architecture == 'riscv64' %}
 pause-image: {{ k3s_pause_image }}
+{% if is_k3s_server %}
 helm-job-image: {{ k3s_helm_job_image }}
+{% endif %}
 {% else %}
 pause-image: {{ image_repository }}/pause:3.1
 {% endif %}

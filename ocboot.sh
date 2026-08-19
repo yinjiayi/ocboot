@@ -9,7 +9,7 @@ DEFAULT_REPO=registry.cn-beijing.aliyuncs.com/yunionio
 DEFAULT_VERSION=v4-k3s.4
 if [[ "$HOST_ARCH" == "riscv64" ]]; then
     DEFAULT_REPO=ghcr.io/yinjiayi
-    DEFAULT_VERSION=v4.0.3-riscv64.12
+    DEFAULT_VERSION=v4.0.3-riscv64.13
 fi
 IMAGE_REPOSITORY=${IMAGE_REPOSITORY:-$DEFAULT_REPO}
 VERSION=${VERSION:-$DEFAULT_VERSION}

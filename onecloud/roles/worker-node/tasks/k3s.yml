@@ -1,5 +1,6 @@
-- name: Check agent node is join
-  shell: test -f /etc/systemd/system/k3s-agent.service
+- name: Check K3s agent is active
+  ansible.builtin.command:
+    cmd: systemctl is-active --quiet k3s-agent
   register: kubelet_result
   ignore_errors: yes
   changed_when: false

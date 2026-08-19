@@ -47,5 +47,6 @@
   shell: |
     /usr/local/bin/ceph --version
   when:
+  - ansible_architecture != 'riscv64'
   - (onecloud_version is version('v4.0', '>=') and upgrade_onecloud_version is not defined) or (upgrade_onecloud_version is defined and upgrade_onecloud_version is version('v4.0', '>='))
   - enable_lbagent | default(false) | bool == false
