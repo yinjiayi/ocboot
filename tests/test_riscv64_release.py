@@ -76,3 +76,24 @@ class TestRiscv64Release(unittest.TestCase):
         )[1]
 
         self.assertIn("ansible_architecture != 'riscv64'", ceph_cache_task)
+
+    def test_riscv64_pins_the_separately_released_kubeserver_image(self):
+        repository = Path(__file__).resolve().parents[1]
+        os_vars = (
+            repository
+            / "onecloud/roles/utils/detect-os/vars/openeuler-riscv64.yml"
+        ).read_text(encoding="utf-8")
+        manifest = (
+            repository
+            / "onecloud/roles/primary-master-node/setup_cloud/templates/onecloud-manifests.yaml.j2"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn(
+            "cloudpods_kubeserver_tag: v4.0.3-riscv64.5",
+            os_vars,
+        )
+        riscv_block = manifest.split(
+            "{% if ansible_architecture == 'riscv64' %}", 1
+        )[1].split("{% endif %}", 1)[0]
+        self.assertIn("kubeserver:", riscv_block)
+        self.assertIn('tag: "{{ cloudpods_kubeserver_tag }}"', riscv_block)
