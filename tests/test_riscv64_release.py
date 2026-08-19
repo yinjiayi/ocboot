@@ -4,6 +4,20 @@ import unittest
 
 class TestRiscv64Release(unittest.TestCase):
 
+    def test_release_entrypoints_pin_the_current_ocboot_image(self):
+        repository = Path(__file__).resolve().parents[1]
+        launcher = (repository / "ocboot.sh").read_text(encoding="utf-8")
+        implementation = (repository / "docs/riscv64.md").read_text(
+            encoding="utf-8")
+        customer = (
+            repository / "docs/customer-deployment-openeuler-riscv64.md"
+        ).read_text(encoding="utf-8")
+
+        version = "v4.0.3-riscv64.16"
+        self.assertIn("DEFAULT_VERSION=" + version, launcher)
+        self.assertIn("ghcr.io/yinjiayi/ocboot:" + version, implementation)
+        self.assertIn("--branch " + version, customer)
+
     def test_host_local_network_guard_uses_network_name(self):
         repository = Path(__file__).resolve().parents[1]
         tasks = (
@@ -97,3 +111,41 @@ class TestRiscv64Release(unittest.TestCase):
         )[1].split("{% endif %}", 1)[0]
         self.assertIn("kubeserver:", riscv_block)
         self.assertIn('tag: "{{ cloudpods_kubeserver_tag }}"', riscv_block)
+
+    def test_add_node_has_customer_grade_postflight_checks(self):
+        repository = Path(__file__).resolve().parents[1]
+        playbook = (repository / "onecloud/add-node.yml").read_text(
+            encoding="utf-8")
+        tasks = (
+            repository
+            / "onecloud/roles/utils/add-node-postflight/tasks/main.yml"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("utils/add-node-postflight", playbook)
+        self.assertIn("condition=Ready node/", tasks)
+        self.assertIn("onecloud.yunion.io/host", tasks)
+        self.assertIn("ovs-vsctl br-exists br0", tasks)
+        self.assertIn("qemu-system-riscv64", tasks)
+        self.assertIn("host_status", tasks)
+        self.assertIn("host-enable", tasks)
+
+    def test_optional_services_are_checked_before_disabling(self):
+        repository = Path(__file__).resolve().parents[1]
+        prereq = (
+            repository / "onecloud/roles/k3s/prereq/tasks/main.yml"
+        ).read_text(encoding="utf-8")
+        agent = (
+            repository / "onecloud/roles/k3s/k3s_agent/tasks/main.yml"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("'nm-cloud-setup.service' in", prereq)
+        self.assertIn("'k3s.service' in", agent)
+
+    def test_common_os_include_uses_a_dedicated_loop_variable(self):
+        repository = Path(__file__).resolve().parents[1]
+        common = (
+            repository / "onecloud/roles/common/tasks/main.yml"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("loop_var: ocboot_os_task_file", common)
+        self.assertIn('include_tasks: "{{ ocboot_os_task_file }}"', common)

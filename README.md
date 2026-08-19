@@ -54,9 +54,16 @@ $ ./ocboot.sh add-node $PRIMARY_IP $node1_ip $node2_ip ... $nodeN_ip
 # 把 $node_ip ssh 端口 2222 的节点加入到 $PRIMARY_IP ssh 端口 4567 的集群
 $ ./ocboot.sh add-node --port 4567 --node-port 2222 $PRIMARY_IP $node_ip
 
+# 验收通过后显式启用新增的 Cloudpods Host
+$ ./ocboot.sh add-node --enable-host-after-ready $PRIMARY_IP $node_ip
+
 # 查看 add-node 命令帮助信息
 $ ./ocboot.sh add-node --help
 ```
+
+默认会等待 Kubernetes 节点和对应 Cloudpods 服务就绪。只有计划手工验收时才使用
+`--skip-postflight`。每个目标节点必须使用唯一 hostname；重复 hostname 会在部署前
+被拒绝并给出修复提示。
 
 具体操作可参考文档：[添加节点](https://www.cloudpods.org/zh/docs/setup/host/)。
 

@@ -1,0 +1,4 @@
+---
+# Slow links may need most of this window to pull the Cloudpods host images.
+add_node_postflight_retries: 360
+add_node_postflight_delay: 10

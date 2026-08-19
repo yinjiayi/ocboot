@@ -94,6 +94,73 @@ class TestAddNodesConfig(unittest.TestCase):
                 runtime="qemu",
             )
 
+    @mock.patch(
+        "lib.service.resolve_ssh_private_file",
+        return_value="/tmp/ocboot-test-id_ed25519",
+    )
+    @mock.patch("lib.service.SSHClient")
+    def test_rejects_a_new_ip_with_an_existing_hostname(
+            self, ssh_client, _resolve_ssh_private_file):
+        existing = FakeNode("openeuler-riscv64-188", "10.213.6.188")
+        ssh_client.return_value.get_hostname.return_value = existing.hostname
+
+        with self.assertRaisesRegex(Exception, "Duplicate hostname"):
+            AddNodesConfig(
+                FakeCluster(existing),
+                ["10.213.6.183"],
+                "root",
+                "/root/.ssh/id_ed25519",
+                22,
+                22,
+                runtime="qemu",
+            )
+
+    @mock.patch(
+        "lib.service.resolve_ssh_private_file",
+        return_value="/tmp/ocboot-test-id_ed25519",
+    )
+    @mock.patch("lib.service.SSHClient")
+    def test_rejects_duplicate_hostnames_in_the_same_batch(
+            self, ssh_client, _resolve_ssh_private_file):
+        existing = FakeNode("openeuler-riscv64", "10.213.6.187")
+        ssh_client.return_value.get_hostname.return_value = "duplicate-worker"
+
+        with self.assertRaisesRegex(Exception, "Duplicate hostname"):
+            AddNodesConfig(
+                FakeCluster(existing),
+                ["10.213.6.183", "10.213.6.184"],
+                "root",
+                "/root/.ssh/id_ed25519",
+                22,
+                22,
+                runtime="qemu",
+            )
+
+    @mock.patch(
+        "lib.service.resolve_ssh_private_file",
+        return_value="/tmp/ocboot-test-id_ed25519",
+    )
+    @mock.patch("lib.service.SSHClient")
+    def test_passes_postflight_options_to_ansible(
+            self, ssh_client, _resolve_ssh_private_file):
+        existing = FakeNode("openeuler-riscv64", "10.213.6.187")
+        ssh_client.return_value.get_hostname.return_value = "new-worker"
+
+        config = AddNodesConfig(
+            FakeCluster(existing),
+            ["10.213.6.183"],
+            "root",
+            "/root/.ssh/id_ed25519",
+            22,
+            22,
+            runtime="qemu",
+            enable_host_after_ready=True,
+            skip_postflight=True,
+        )
+
+        self.assertTrue(config.get_vars()["enable_host_after_ready"])
+        self.assertTrue(config.get_vars()["skip_add_node_postflight"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -99,7 +99,7 @@
     name: nm-cloud-setup.service
     state: stopped
     enabled: false
-  ignore_errors: true
+  when: "'nm-cloud-setup.service' in (ansible_facts.services | default({}))"
 
 - name: Add br_netfilter to /etc/modules-load.d/
   ansible.builtin.copy:
@@ -197,4 +197,3 @@
         src: "{{ k3s_server_location }}"
         force: true
         state: link
-

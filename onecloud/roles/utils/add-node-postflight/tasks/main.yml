@@ -1,0 +1,171 @@
+---
+- name: Wait for the node service to stay active
+  ansible.builtin.command:
+    cmd: >-
+      systemctl is-active --quiet
+      {{ 'k3s-agent' if k8s_or_k3s == 'k3s' else 'kubelet' }}
+  register: add_node_service_status
+  changed_when: false
+  until: add_node_service_status.rc == 0
+  retries: "{{ add_node_postflight_retries }}"
+  delay: "{{ add_node_postflight_delay }}"
+
+- name: Wait for the Kubernetes node to become Ready
+  ansible.builtin.command:
+    cmd: >-
+      {{ K3S_CMDLINE_PREFIX }} kubectl wait
+      --for=condition=Ready node/{{ ansible_hostname }} --timeout=5s
+  environment:
+    KUBECONFIG: "{{ ENV_KUBECONFIG }}"
+  become: true
+  delegate_to: "{{ k8s_controlplane_host }}"
+  register: add_node_kubernetes_ready
+  changed_when: false
+  until: add_node_kubernetes_ready.rc == 0
+  retries: "{{ add_node_postflight_retries }}"
+  delay: "{{ add_node_postflight_delay }}"
+
+- name: Wait for all Cloudpods host DaemonSets on the node
+  ansible.builtin.shell: |
+    set -euo pipefail
+    kubectl_cmd={{ (K3S_CMDLINE_PREFIX ~ ' kubectl') | quote }}
+    daemonsets="$($kubectl_cmd -n onecloud get daemonsets -o json | jq -r '
+      .items[] |
+      select(
+        ((.spec.template.spec.nodeSelector // {})["onecloud.yunion.io/host"] == "enable") or
+        ((.spec.template.spec.nodeSelector // {}) | length == 0)
+      ) |
+      .metadata.name
+    ')"
+    test -n "$daemonsets"
+    pods="$($kubectl_cmd -n onecloud get pods \
+      --field-selector spec.nodeName={{ ansible_hostname | quote }} \
+      --no-headers \
+      -o custom-columns='OWNER:.metadata.ownerReferences[0].name,READY:.status.containerStatuses[*].ready,PHASE:.status.phase')"
+    while IFS= read -r daemonset; do
+      awk -v owner="$daemonset" '
+        $1 == owner && $2 ~ /true/ && $2 !~ /false/ && $3 == "Running" { found=1 }
+        END { exit(found ? 0 : 1) }
+      ' <<< "$pods"
+    done <<< "$daemonsets"
+  args:
+    executable: /bin/bash
+  environment:
+    KUBECONFIG: "{{ ENV_KUBECONFIG }}"
+  become: true
+  delegate_to: "{{ k8s_controlplane_host }}"
+  register: add_node_host_daemonsets_ready
+  changed_when: false
+  until: add_node_host_daemonsets_ready.rc == 0
+  retries: "{{ add_node_postflight_retries }}"
+  delay: "{{ add_node_postflight_delay }}"
+  when: join_as_host | default(false) | bool
+
+- name: Wait for the Cloudpods load balancer agent on the node
+  ansible.builtin.shell: |
+    set -euo pipefail
+    {{ K3S_CMDLINE_PREFIX }} kubectl -n onecloud get pods \
+      --field-selector spec.nodeName={{ ansible_hostname | quote }} \
+      --no-headers \
+      -o custom-columns='OWNER:.metadata.ownerReferences[0].name,READY:.status.containerStatuses[*].ready,PHASE:.status.phase' |
+      awk '
+        $1 == "default-lbagent" && $2 ~ /true/ && $2 !~ /false/ && $3 == "Running" { found=1 }
+        END { exit(found ? 0 : 1) }
+      '
+  args:
+    executable: /bin/bash
+  environment:
+    KUBECONFIG: "{{ ENV_KUBECONFIG }}"
+  become: true
+  delegate_to: "{{ k8s_controlplane_host }}"
+  register: add_node_lbagent_ready
+  changed_when: false
+  until: add_node_lbagent_ready.rc == 0
+  retries: "{{ add_node_postflight_retries }}"
+  delay: "{{ add_node_postflight_delay }}"
+  when: enable_lbagent | default(false) | bool
+
+- name: Verify the Cloudpods executor service
+  ansible.builtin.command:
+    cmd: systemctl is-active --quiet {{ executor_service | default('yunion-executor') }}
+  register: add_node_executor_ready
+  changed_when: false
+  when: join_as_host | default(false) | bool
+
+- name: Verify the first Open vSwitch host bridge
+  ansible.builtin.command:
+    cmd: ovs-vsctl br-exists br0
+  register: add_node_ovs_ready
+  changed_when: false
+  when: join_as_host | default(false) | bool
+
+- name: Verify RISC-V QEMU can initialize KVM
+  ansible.builtin.shell: |
+    set -euo pipefail
+    output_file=$(mktemp)
+    trap 'rm -f "$output_file"' EXIT
+    set +e
+    timeout 5 /usr/local/qemu-10.0.7/bin/qemu-system-riscv64 \
+      -machine virt,accel=kvm -cpu host -smp 1 -m 256 \
+      -nodefaults -display none -monitor none -serial none -S \
+      >"$output_file" 2>&1
+    rc=$?
+    set -e
+    if [ "$rc" -ne 124 ]; then
+      cat "$output_file" >&2
+      exit "$rc"
+    fi
+  args:
+    executable: /bin/bash
+  changed_when: false
+  when:
+    - join_as_host | default(false) | bool
+    - not (enable_containerd | default(false) | bool)
+    - ansible_architecture == 'riscv64'
+
+- name: Wait for the Cloudpods host to become running and online
+  ansible.builtin.shell: |
+    set -euo pipefail
+    source ~/.onecloud_rcadmin
+    host="$(${CLIMC:-/opt/yunion/bin/climc} host-show {{ ansible_hostname | quote }})"
+    grep -Eq '^\|[[:space:]]*status[[:space:]]*\|[[:space:]]*running[[:space:]]*\|' <<< "$host"
+    grep -Eq '^\|[[:space:]]*host_status[[:space:]]*\|[[:space:]]*online[[:space:]]*\|' <<< "$host"
+  args:
+    executable: /bin/bash
+  become: true
+  delegate_to: "{{ k8s_controlplane_host }}"
+  register: add_node_cloudpods_host_ready
+  changed_when: false
+  until: add_node_cloudpods_host_ready.rc == 0
+  retries: "{{ add_node_postflight_retries }}"
+  delay: "{{ add_node_postflight_delay }}"
+  when: join_as_host | default(false) | bool
+
+- name: Explicitly enable the ready Cloudpods host
+  ansible.builtin.shell: |
+    set -euo pipefail
+    source ~/.onecloud_rcadmin
+    ${CLIMC:-/opt/yunion/bin/climc} host-enable {{ ansible_hostname | quote }}
+  args:
+    executable: /bin/bash
+  become: true
+  delegate_to: "{{ k8s_controlplane_host }}"
+  when:
+    - join_as_host | default(false) | bool
+    - enable_host_after_ready | default(false) | bool
+
+- name: Verify the Cloudpods host is enabled when requested
+  ansible.builtin.shell: |
+    set -euo pipefail
+    source ~/.onecloud_rcadmin
+    host="$(${CLIMC:-/opt/yunion/bin/climc} host-show {{ ansible_hostname | quote }})"
+    grep -Eq '^\|[[:space:]]*enabled[[:space:]]*\|[[:space:]]*true[[:space:]]*\|' <<< "$host"
+  args:
+    executable: /bin/bash
+  become: true
+  delegate_to: "{{ k8s_controlplane_host }}"
+  register: add_node_cloudpods_host_enabled
+  changed_when: false
+  when:
+    - join_as_host | default(false) | bool
+    - enable_host_after_ready | default(false) | bool

@@ -19,8 +19,13 @@ passwords, then run:
 ./ocboot.sh install config-openeuler-riscv64.yml
 ```
 
-The RISC-V ocboot container is `ghcr.io/yinjiayi/ocboot:v4.0.3-riscv64.15`.
+The RISC-V ocboot container is `ghcr.io/yinjiayi/ocboot:v4.0.3-riscv64.16`.
 It is published by the pinned-source workflow in
 `yinjiayi/cloudpods-riscv64-releases`; this repository's tag workflow performs
 the native build and runtime checks without requiring cross-repository package
 write access.
+
+`add-node` waits for the Kubernetes node, matching Cloudpods DaemonSets, OVS,
+QEMU/KVM, and the Cloudpods Host record. Pass `--enable-host-after-ready` to
+explicitly enable a host after those checks, or `--skip-postflight` only when
+an operator intends to perform the same validation manually.

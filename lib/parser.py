@@ -67,7 +67,15 @@ def inject_add_nodes_options(parser):
     parser.add_argument("--offline-data-path",
                         dest="offline_data_path",
                         default="",
-                        help="offline rpm repo path for upgrade mode")
+                        help="offline RPM repository path already present on "
+                             "each target node; usable by add-node and upgrade")
+
+    parser.add_argument("--skip-postflight",
+                        dest="skip_postflight",
+                        action="store_true",
+                        default=False,
+                        help="return after provisioning without waiting for "
+                             "Kubernetes and Cloudpods services to become ready")
 
     parser.add_argument("--ip-type",
                         dest="ip_type",
@@ -84,6 +92,13 @@ def inject_add_hostagent_options(parser):
                         dest="enable_host_on_vm",
                         action="store_true", default=False,
                         help="enable kvm host service inside virtual machine")
+
+    parser.add_argument("--enable-host-after-ready",
+                        dest="enable_host_after_ready",
+                        action="store_true",
+                        default=False,
+                        help="explicitly enable the Cloudpods host after the "
+                             "postflight readiness checks pass")
 
     parser.add_argument("--host-network",
                         action="append",

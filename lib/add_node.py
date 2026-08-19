@@ -52,6 +52,8 @@ class AddWorkerNodeService(AddNodeService):
             'runtime': args.runtime,
             'host_networks': args.host_networks,
             'disk_paths': args.disk_paths,
+            'enable_host_after_ready': args.enable_host_after_ready,
+            'skip_postflight': args.skip_postflight,
             'ip_dual_conf': getattr(args, 'ip_dual_conf', None),
             'ip_type': args.ip_type,
             'offline_data_path': args.offline_data_path,

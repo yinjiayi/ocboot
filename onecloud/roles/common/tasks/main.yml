@@ -50,7 +50,7 @@
 
 # onecloud/roles/common/tasks/
 - name: "Import OS Arch tasks Common ({{ ansible_distribution }} {{ ansible_distribution_major_version }} {{ ansible_architecture }})"
-  include_tasks: "{{ item }}"
+  include_tasks: "{{ ocboot_os_task_file }}"
   with_first_found:
   - files:
     - "{{ ansible_distribution | lower | regex_replace('[^a-zA-Z0-9 ]+|[ ]+$', '') | replace(' ','_') }}-{{ansible_distribution_release}}.yml"
@@ -59,6 +59,8 @@
     - "{{ ansible_distribution | lower |replace(' ', '_')}}.yml"
     paths:
     - os
+  loop_control:
+    loop_var: ocboot_os_task_file
 
 - name: Binary version check
   include_role:

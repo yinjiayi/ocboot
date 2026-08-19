@@ -62,7 +62,9 @@ class Service(BaseService):
 class NodesConfig(object):
 
     def __init__(self, target_nodes, ssh_user, ssh_private_file, ssh_port):
-        target_nodes = list(set(target_nodes))
+        # Preserve the CLI order so multi-node runs and their logs remain
+        # deterministic while still removing repeated addresses.
+        target_nodes = list(dict.fromkeys(target_nodes))
         conf = [{'hostname': target_node, 'user': ssh_user, 'port': ssh_port}
                 for target_node in target_nodes]
         conf_dict = {
@@ -148,7 +150,9 @@ class AddNodeService(AddNodeBaseService):
                                 args.ssh_private_file,
                                 args.ssh_port,
                                 args.ssh_node_port,
-                                args.enable_host_on_vm)
+                                args.enable_host_on_vm,
+                                enable_host_after_ready=args.enable_host_after_ready,
+                                skip_postflight=args.skip_postflight)
         return config.run()
 
 
@@ -180,6 +184,7 @@ class AddLBAgentService(AddNodeBaseService):
             'ip_dual_conf': getattr(args, 'ip_dual_conf', None),
             'ip_type': args.ip_type,
             'offline_data_path': args.offline_data_path,
+            'skip_postflight': args.skip_postflight,
         }
 
         # 如果是双栈配置，需要处理IPv4和IPv6地址
@@ -212,9 +217,14 @@ class AddNodesConfig(object):
                  enable_lbagent=False,
                  **kwargs):
         ssh_private_file = resolve_ssh_private_file(ssh_private_file)
-        target_nodes = list(set(target_nodes))
+        # Preserve the requested order and reject duplicate hostnames across
+        # every target in the same batch deterministically.
+        target_nodes = list(dict.fromkeys(target_nodes))
         target_hostnames = [node.get_hostname() for node in cluster.k8s_nodes]
         self.enable_containerd = kwargs.get('runtime') == 'containerd'
+        self.enable_host_after_ready = kwargs.get(
+            'enable_host_after_ready', False)
+        self.skip_postflight = kwargs.get('skip_postflight', False)
 
         for target_node in target_nodes:
             cli = SSHClient(
@@ -241,7 +251,12 @@ class AddNodesConfig(object):
 
             # check Hostname:
             if target_hostname in target_hostnames:
-                raise Exception(Red(f"Node {target_hostname}[{target_node}] already exists in cluster (By Hostname Check). "))
+                raise Exception(Red(
+                    "Duplicate hostname %s on target %s. Every cluster node "
+                    "must have a unique hostname; run 'hostnamectl "
+                    "set-hostname <unique-name>' on the target and retry. " % (
+                        target_hostname, target_node)))
+            target_hostnames.append(target_hostname)
 
         self._check_target_nodes_cidr_conflicts(
             cluster, target_nodes,
@@ -362,6 +377,9 @@ class AddNodesConfig(object):
                 vars['nvidia_driver_installer_path'] = self.nvidia_driver_installer_path
             if self.cuda_installer_path:
                 vars['cuda_installer_path'] = self.cuda_installer_path
+
+        vars['enable_host_after_ready'] = self.enable_host_after_ready
+        vars['skip_add_node_postflight'] = self.skip_postflight
 
         return vars
 

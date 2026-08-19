@@ -27,4 +27,4 @@
     name: k3s
     state: stopped
     enabled: false
-  ignore_errors: true
+  when: "'k3s.service' in (ansible_facts.services | default({}))"

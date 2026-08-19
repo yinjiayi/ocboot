@@ -116,5 +116,42 @@
     - online_status is defined
     - online_status == 'online'
 
+- name: Check the offline Cloudpods RISC-V RPM repository
+  ansible.builtin.stat:
+    path: "{{ offline_data_path }}/repodata/repomd.xml"
+  register: riscv64_offline_rpm_metadata
+  when:
+    - online_status is defined
+    - online_status == 'offline'
+
+- name: Require valid offline Cloudpods RISC-V RPM metadata
+  ansible.builtin.assert:
+    that:
+      - riscv64_offline_rpm_metadata.stat.exists
+      - riscv64_offline_rpm_metadata.stat.isreg
+    fail_msg: >-
+      --offline-data-path must name a repository already present on the target
+      and containing repodata/repomd.xml.
+  when:
+    - online_status is defined
+    - online_status == 'offline'
+
+- name: Configure the offline Cloudpods RISC-V RPM repository
+  ansible.builtin.copy:
+    dest: /etc/yum.repos.d/cloudpods-riscv64.repo
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [yunion-cloudpods-riscv64]
+      name=Cloudpods RISC-V packages for openEuler 24.03 LTS SP3 (offline)
+      baseurl=file://{{ offline_data_path }}
+      enabled=1
+      gpgcheck=0
+      repo_gpgcheck=0
+  when:
+    - online_status is defined
+    - online_status == 'offline'
+
 - name: Include RedHat family common tasks
   include_tasks: redhat.yml
