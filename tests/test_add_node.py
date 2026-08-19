@@ -22,6 +22,8 @@ class FakeCluster:
     def __init__(self, node):
         self.node = node
         self.k8s_nodes = [node]
+        self.ssh_client = mock.Mock()
+        self.ssh_client.exec_command.return_value = ""
 
     def find_node_by_ip_or_hostname(self, target):
         if target in (self.node.get_ip(), self.node.get_hostname()):
@@ -49,8 +51,13 @@ class FakeCluster:
 
 class TestAddNodesConfig(unittest.TestCase):
 
+    @mock.patch(
+        "lib.service.resolve_ssh_private_file",
+        return_value="/tmp/ocboot-test-id_ed25519",
+    )
     @mock.patch("lib.service.SSHClient")
-    def test_allows_idempotent_retry_for_the_same_node(self, ssh_client):
+    def test_allows_idempotent_retry_for_the_same_node(
+            self, ssh_client, _resolve_ssh_private_file):
         existing = FakeNode("openeuler-riscv64-188", "10.213.6.188")
         ssh_client.return_value.get_hostname.return_value = existing.hostname
 
@@ -66,9 +73,13 @@ class TestAddNodesConfig(unittest.TestCase):
 
         self.assertEqual(config.worker_config.nodes[0].host, existing.ip)
 
+    @mock.patch(
+        "lib.service.resolve_ssh_private_file",
+        return_value="/tmp/ocboot-test-id_ed25519",
+    )
     @mock.patch("lib.service.SSHClient")
     def test_rejects_an_existing_ip_with_a_different_hostname(
-            self, ssh_client):
+            self, ssh_client, _resolve_ssh_private_file):
         existing = FakeNode("openeuler-riscv64-188", "10.213.6.188")
         ssh_client.return_value.get_hostname.return_value = "unexpected-host"
 
